@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guilt Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); /* Dark Gradient */
+            color: #e2e8f0;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7); /* Dark Glass */
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .bar-container {
+            height: 400px;
+            display: flex;
+            align-items: flex-end; 
+            justify-content: center;
+            gap: 40px; 
+            padding-bottom: 0px;
+            position: relative;
+            background: rgba(15, 23, 42, 0.6); /* Darker container bg */
+        }
+
+        .bar-wrapper {
+            height: 100%; 
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end; 
+            align-items: center;
+            position: relative;
+            z-index: 10;
+            width: 120px;
+        }
+
+        .bar {
+            width: 100%;
+            transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            min-height: 4px;
+        }
+
+        .bar-label {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            color: #f1f5f9; 
+            background: rgba(2, 6, 23, 0.8); /* Darker label bg */
+            padding: 2px 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .water-bar {
+            background: linear-gradient(to top, rgba(59, 130, 246, 0.8), rgba(96, 165, 250, 0.9));
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            border-radius: 8px 8px 0 0;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* Animation for water rising */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .floating-icon {
+            animation: rise 4s infinite ease-in;
+        }
+        
+        /* Bubbles animation inside water bar */
+        .bubbles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .bubble {
+            position: absolute;
+            bottom: -10px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: rise 4s infinite ease-in;
+        }
+        @keyframes rise {
+            0% { bottom: -10px; opacity: 0; transform: translateX(0); }
+            50% { opacity: 1; }
+            100% { bottom: 100%; opacity: 0; transform: translateX(-10px); }
+        }
+
+        /* 3D Containers */
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+            background: transparent !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 text-slate-200">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2">
+                <i class="fas fa-hand-holding-water text-blue-400 floating-icon"></i> 
+                AI Guilt Calculator
+            </h1>
+            <p class="text-lg text-slate-400">Let's see how much water you're wasting on bad poetry.</p>
+        </header>
+
+        <!-- Input Section (Full Width) -->
+        <div class="glass-panel rounded-2xl p-6 md:p-8 mb-8">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+                <i class="fas fa-calculator text-blue-400"></i> Calculate Your Damage
+            </h2>
+            
+            <div class="flex flex-col md:flex-row gap-8 items-center justify-between">
+                <div class="w-full md:w-1/2">
+                    <label class="block text-sm font-medium text-slate-400 mb-2">
+                        How many times do you bother the AI daily?
+                    </label>
+                    <input type="number" id="promptInput" 
+                        class="w-full text-3xl font-bold p-4 rounded-xl border-2 border-slate-700 bg-slate-900 text-blue-400 focus:border-blue-500 focus:outline-none transition-colors text-center" 
+                        placeholder="e.g. 20" value="20" min="0">
+                    <p class="text-xs text-slate-500 mt-2 text-center">
+                        *Assuming you don't hallucinate 50 times an hour.
+                    </p>
+                </div>
+                
+                <div class="w-full md:w-1/2 grid grid-cols-3 gap-4 text-center">
+                     <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                         <div class="text-xs text-slate-400">Daily Sip</div>
+                         <div class="font-bold text-blue-400" id="dailyLiters">0 L</div>
+                     </div>
+                     <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                         <div class="text-xs text-slate-400">Annual Drain</div>
+                         <div class="font-bold text-blue-400" id="totalLiters">0 L</div>
+                     </div>
+                     <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                         <div class="text-xs text-slate-400">Decade of Despair</div>
+                         <div class="font-bold text-blue-400" id="decadeLiters">0 L</div>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            
+            <!-- Graph 1: 1 Year vs Burj Khalifa -->
+            <div class="glass-panel rounded-2xl p-6 md:p-8 flex flex-col justify-between">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-200">
+                    <i class="fas fa-building text-purple-400"></i> 1 Year of Thirst
+                </h2>
+                
+                <div class="bar-container rounded-xl border-b-4 border-slate-700 overflow-hidden">
+                    <div class="absolute inset-0 w-full h-full pointer-events-none" style="background-image: linear-gradient(#334155 1px, transparent 1px); background-size: 100% 20%; opacity: 0.3;"></div>
+
+                    <!-- Burj Khalifa Wrapper -->
+                    <div class="bar-wrapper group">
+                        <div class="bar building-bar flex flex-col justify-end items-center" style="height: 85%;"> 
+                            <span class="bar-label z-20">Burj Khalifa</span>
+                            <div id="burj-container" class="canvas-container"></div>
+                        </div>
+                        <span class="mt-2 text-xs font-bold text-slate-500">828m</span>
+                    </div>
+
+                    <!-- User Stack Wrapper -->
+                    <div class="bar-wrapper">
+                        <div class="bar water-bar" id="waterBar" style="height: 10%;">
+                            <span class="bar-label" id="waterBarLabel">0 Floors</span>
+                            <div class="bubbles">
+                                <div class="bubble" style="left: 20%; width: 5px; height: 5px; animation-delay: 0s;"></div>
+                                <div class="bubble" style="left: 60%; width: 8px; height: 8px; animation-delay: 1s;"></div>
+                                <div class="bubble" style="left: 40%; width: 4px; height: 4px; animation-delay: 2s;"></div>
+                            </div>
+                        </div>
+                        <span class="mt-2 text-xs font-bold" id="stackHeightLabel">0m</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 bg-yellow-900/20 border border-yellow-800 rounded-xl">
+                    <p class="text-center text-yellow-200 font-medium text-sm" id="comparisonText">
+                        Loading judgment...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Graph 2: 10 Years vs Mount Everest -->
+            <div class="glass-panel rounded-2xl p-6 md:p-8 flex flex-col justify-between">
+                <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-200">
+                    <i class="fas fa-mountain text-indigo-400"></i> 10 Years of Doom
+                </h2>
+                
+                <div class="bar-container rounded-xl border-b-4 border-slate-700 overflow-hidden">
+                    <div class="absolute inset-0 w-full h-full pointer-events-none" style="background-image: linear-gradient(#334155 1px, transparent 1px); background-size: 100% 20%; opacity: 0.3;"></div>
+
+                    <!-- Everest Wrapper -->
+                    <div class="bar-wrapper group">
+                        <div class="bar building-bar flex flex-col justify-end items-center" style="height: 85%;"> 
+                            <span class="bar-label z-20">Mt. Everest</span>
+                            <div id="everest-container" class="canvas-container"></div>
+                        </div>
+                        <span class="mt-2 text-xs font-bold text-slate-500">8,849m</span>
+                    </div>
+
+                    <!-- User Stack Wrapper 10 Years -->
+                    <div class="bar-wrapper">
+                        <div class="bar water-bar" id="waterBar10y" style="height: 10%;">
+                            <span class="bar-label" id="waterBarLabel10y">0%</span>
+                            <div class="bubbles">
+                                <div class="bubble" style="left: 30%; width: 6px; height: 6px; animation-delay: 0.5s;"></div>
+                                <div class="bubble" style="left: 70%; width: 4px; height: 4px; animation-delay: 1.5s;"></div>
+                                <div class="bubble" style="left: 50%; width: 7px; height: 7px; animation-delay: 2.5s;"></div>
+                            </div>
+                        </div>
+                        <span class="mt-2 text-xs font-bold" id="stackHeightLabel10y">0m</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 bg-indigo-900/20 border border-indigo-800 rounded-xl">
+                    <p class="text-center text-indigo-200 font-medium text-sm" id="comparisonText10y">
+                        Loading judgment...
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Apocalypse Clock Section -->
+        <div class="mt-8 glass-panel rounded-2xl p-6 md:p-8 border border-red-900/50 bg-red-950/10">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-red-400">
+                <i class="fas fa-radiation"></i> The Apocalypse Clock
+            </h2>
+            <p class="text-slate-400 mb-6 text-sm md:text-base leading-relaxed">
+                If <strong>1 billion people</strong> had your daily habits, how long until we drain <strong>Lake Mead</strong> (approx 35 Trillion Liters)?
+            </p>
+            <div class="text-center py-4 bg-red-950/20 rounded-xl border border-red-900/30">
+                <div class="text-4xl md:text-6xl font-bold text-red-500 mb-2 tracking-tighter" id="apocalypseTime">0 Years</div>
+                <p class="text-red-300/80 italic text-sm md:text-base px-4" id="apocalypseQuote">Calculating the end times...</p>
+            </div>
+        </div>
+
+        <!-- Suggestions Section -->
+        <div class="mt-8 glass-panel rounded-2xl p-6 md:p-8">
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-slate-200">
+                <i class="fas fa-leaf text-green-400"></i> 3 Ways to Stop Ruining Everything
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Tip 1 -->
+                <div class="bg-green-900/20 rounded-xl p-5 border border-green-800 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-green-900/50 rounded-full flex items-center justify-center mb-4 text-green-400 text-xl border border-green-700">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-200 mb-2 text-lg">Try Thinking First</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">Crazy concept, I know. But if you refine your prompt <i>before</i> hitting enter, you avoid the "trial and error" loop that murders glaciers.</p>
+                </div>
+
+                <!-- Tip 2 -->
+                <div class="bg-blue-900/20 rounded-xl p-5 border border-blue-800 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-blue-900/50 rounded-full flex items-center justify-center mb-4 text-blue-400 text-xl border border-blue-700">
+                        <i class="fas fa-stop-circle"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-200 mb-2 text-lg">Stop Spamming Enter</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">Ask multiple related questions in one go. The AI has a context window; use it, or just go back to using an encyclopedia.</p>
+                </div>
+
+                <!-- Tip 3 -->
+                <div class="bg-purple-900/20 rounded-xl p-5 border border-purple-800 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
+                    <div class="w-12 h-12 bg-purple-900/50 rounded-full flex items-center justify-center mb-4 text-purple-400 text-xl border border-purple-700">
+                        <i class="fas fa-bomb"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-200 mb-2 text-lg">Don't Use a Bazooka</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">You don't need a massive reasoning model to check your grammar. Use a lighter, dumber model for your lighter, dumber tasks.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footnote -->
+        <div class="mt-12 text-center text-slate-500 text-sm max-w-2xl mx-auto pb-8">
+            <p class="mb-4">Methodology: Estimates based on research suggesting large language models consume roughly 500ml of water per 20-50 queries. We're being nice and using a conservative estimate. You're welcome.</p>
+            <p class="font-medium text-slate-400">Guilt-tripped & Built by Abhijeet, Tejaswinijeet, Akashdeep & Nilisha</p>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const WATER_PER_PROMPT_LITERS = 0.025; // 25ml per prompt
+        const BOTTLE_VOLUME_LITERS = 0.5; // 500ml
+        const BOTTLE_HEIGHT_METERS = 0.2; // 20cm
+        const BURJ_KHALIFA_HEIGHT = 828; // Meters
+        const EVEREST_HEIGHT = 8849; // Meters
+        const STANDARD_FLOOR_HEIGHT = 3.2; // Meters
+        const LAKE_MEAD_LITERS = 35000000000000; // 35 Trillion
+        const GLOBAL_USERS = 1000000000; // 1 Billion
+
+        // Elements
+        const promptInput = document.getElementById('promptInput');
+        
+        // Stats
+        const dailyLitersEl = document.getElementById('dailyLiters');
+        const totalLitersEl = document.getElementById('totalLiters');
+        const decadeLitersEl = document.getElementById('decadeLiters');
+
+        // Graph 1 Elements (Burj)
+        const stackHeightLabel = document.getElementById('stackHeightLabel');
+        const comparisonText = document.getElementById('comparisonText');
+        const waterBar = document.getElementById('waterBar');
+        const waterBarLabel = document.getElementById('waterBarLabel');
+        const buildingBarBurj = document.querySelector('#burj-container').parentElement;
+
+        // Graph 2 Elements (Everest)
+        const stackHeightLabel10y = document.getElementById('stackHeightLabel10y');
+        const comparisonText10y = document.getElementById('comparisonText10y');
+        const waterBar10y = document.getElementById('waterBar10y');
+        const waterBarLabel10y = document.getElementById('waterBarLabel10y');
+        const buildingBarEverest = document.querySelector('#everest-container').parentElement;
+        
+        // Apocalypse Elements
+        const apocalypseTimeEl = document.getElementById('apocalypseTime');
+        const apocalypseQuoteEl = document.getElementById('apocalypseQuote');
+
+        // Sarcastic Commentary Library
+        const sarcasticQuotes = {
+            low: [
+                "A cute little puddle. The polar bears are mildly impressed.",
+                "Basic hydration levels. How boringly responsible.",
+                "Are you even trying? My cactus drinks more than this.",
+                "Your carbon footprint is smaller than a hamster's. Kudos.",
+                "Wow, so sustainable. Do you want a medal?"
+            ],
+            medium: [
+                "Thirsty work, asking AI to do your homework.",
+                "You're draining the reservoir, but sure, that email draft was worth it.",
+                "Slow down, Aquaman. You're making the clouds nervous.",
+                "I hope those prompts were important. The fish are judging you.",
+                "At this rate, you'll personally dry out a small lake."
+            ],
+            high: [
+                "Trying to drain the ocean? Because you're succeeding.",
+                "At this rate, you owe the planet a glacier.",
+                "Captain Planet is weeping in a corner right now.",
+                "Look at that! A monument to your digital thirst. Terrifying.",
+                "You're not a user, you're a geological event.",
+                "Congratulations, you are the reason we can't have nice things."
+            ]
+        };
+        
+        const apocalypseQuotes = [
+            "Well, at least we won't have to worry about rising sea levels if we drink it all first.",
+            "Start hoarding canteens now.",
+            "You better hope Mars has water.",
+            "Our grandkids are going to love the desert view.",
+            "Speed-running the apocalypse, I see.",
+            "Mad Max was a documentary, apparently."
+        ];
+
+        function getQuote(value, threshold1, threshold2) {
+            let tier = 'low';
+            if (value >= threshold2) tier = 'high';
+            else if (value >= threshold1) tier = 'medium';
+            
+            // Pick quote based on value so it stays stable while typing (pseudo-random)
+            const index = Math.floor(value) % sarcasticQuotes[tier].length;
+            return sarcasticQuotes[tier][index];
+        }
+
+        // Three.js Renderers
+        let rendererBurj, rendererEverest;
+
+        function initTower3D() {
+            const container = document.getElementById('burj-container');
+            
+            const scene = new THREE.Scene();
+            // Camera calibrated for perfect fit: 
+            // Total Model Height = 22 units. Half = 11.
+            // FOV = 45. Z = 11 / tan(22.5) ≈ 26.6
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 27); // Adjusted Z for padding
+            camera.lookAt(0, 0, 0);
+
+            rendererBurj = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            rendererBurj.setSize(container.clientWidth, container.clientHeight);
+            rendererBurj.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(rendererBurj.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 10);
+            scene.add(dirLight);
+
+            const group = new THREE.Group();
+            const material = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.2 });
+
+            const levels = [
+                { r: 2.5, h: 5, y: 0 }, { r: 2.0, h: 4, y: 5 }, { r: 1.5, h: 4, y: 9 },
+                { r: 1.0, h: 3, y: 13 }, { r: 0.5, h: 3, y: 16 }, { r: 0.1, h: 3, y: 19 }
+            ];
+
+            // Center the model vertically
+            // Total height 22. Midpoint 11.
+            const yOffset = -11; 
+
+            levels.forEach(level => {
+                const geometry = new THREE.CylinderGeometry(level.r * 0.9, level.r, level.h, 6);
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.y = level.y + (level.h / 2) + yOffset;
+                group.add(mesh);
+            });
+            scene.add(group);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                group.rotation.y += 0.005;
+                rendererBurj.render(scene, camera);
+            }
+            animate();
+
+            // Handle Resize
+            new ResizeObserver(() => {
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                if (width && height) {
+                    rendererBurj.setSize(width, height);
+                    camera.aspect = width / height;
+                    camera.updateProjectionMatrix();
+                }
+            }).observe(container);
+        }
+
+        function initEverest3D() {
+            const container = document.getElementById('everest-container');
+
+            const scene = new THREE.Scene();
+            
+            // Camera calibrated for perfect fit:
+            // Cone Height = 12. Half = 6.
+            // FOV = 45. Z = 6 / tan(22.5) ≈ 14.5
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 15); // Adjusted Z for padding
+            camera.lookAt(0, 0, 0);
+
+            rendererEverest = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            rendererEverest.setSize(container.clientWidth, container.clientHeight);
+            rendererEverest.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(rendererEverest.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 10);
+            scene.add(dirLight);
+
+            // Create Mountain
+            // ConeGeometry(radius, height) is centered at origin
+            const geometry = new THREE.ConeGeometry(7, 12, 5); 
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xf1f5f9, 
+                flatShading: true,
+                roughness: 0.8
+            });
+            const mountain = new THREE.Mesh(geometry, material);
+            scene.add(mountain);
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                mountain.rotation.y -= 0.002;
+                rendererEverest.render(scene, camera);
+            }
+            animate();
+
+            // Handle Resize
+            new ResizeObserver(() => {
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                if (width && height) {
+                    rendererEverest.setSize(width, height);
+                    camera.aspect = width / height;
+                    camera.updateProjectionMatrix();
+                }
+            }).observe(container);
+        }
+
+        function calculate() {
+            let dailyPrompts = parseFloat(promptInput.value) || 0;
+            if(dailyPrompts < 0) dailyPrompts = 0;
+
+            const dailyWater = dailyPrompts * WATER_PER_PROMPT_LITERS;
+            
+            // --- 1 Year Calculation ---
+            const yearlyPrompts = dailyPrompts * 365;
+            const yearWater = yearlyPrompts * WATER_PER_PROMPT_LITERS;
+            const yearBottles = yearWater / BOTTLE_VOLUME_LITERS;
+            const yearHeight = yearBottles * BOTTLE_HEIGHT_METERS;
+            
+            // --- 10 Year Calculation ---
+            const decadePrompts = yearlyPrompts * 10;
+            const decadeWater = yearWater * 10;
+            const decadeBottles = decadeWater / BOTTLE_VOLUME_LITERS;
+            const decadeHeight = decadeBottles * BOTTLE_HEIGHT_METERS;
+
+            // Update Stats Headers
+            dailyLitersEl.textContent = dailyWater.toFixed(1) + " L";
+            totalLitersEl.textContent = yearWater.toLocaleString(undefined, {maximumFractionDigits:1}) + " L";
+            decadeLitersEl.textContent = decadeWater.toLocaleString(undefined, {maximumFractionDigits:1}) + " L";
+
+            // --- Update Burj Graph (1 Year) ---
+            let floors = Math.round(yearHeight / STANDARD_FLOOR_HEIGHT);
+            if (floors === 0 && yearHeight > 0) floors = 1;
+            
+            stackHeightLabel.textContent = Math.round(yearHeight).toLocaleString() + "m";
+            const ratioBurj = yearHeight / BURJ_KHALIFA_HEIGHT;
+            
+            // Get Sarcastic Quote for Burj (using floors as metric: 20 and 50)
+            const quoteBurj = getQuote(floors, 20, 50);
+            const quoteHtml = `<br><span class="block mt-2 text-xs italic opacity-80">"${quoteBurj}"</span>`;
+
+            if (ratioBurj < 1) {
+                comparisonText.innerHTML = `1 Year stack is <span class="font-bold">${(ratioBurj * 100).toFixed(1)}%</span> of Burj Khalifa.${quoteHtml}`;
+            } else {
+                comparisonText.innerHTML = `1 Year stack is <span class="font-bold text-red-500">${ratioBurj.toFixed(2)}x</span> taller than Burj Khalifa!${quoteHtml}`;
+            }
+
+            // Color Logic 1 Year
+            updateBarVisuals(waterBar, waterBarLabel, stackHeightLabel, floors, 20, 50);
+            waterBarLabel.textContent = `${floors} Floors`;
+
+            // Scale 1 Year
+            let scaleBurj = Math.max(BURJ_KHALIFA_HEIGHT, yearHeight);
+            if(scaleBurj === 0) scaleBurj = 100;
+            buildingBarBurj.style.height = `${(BURJ_KHALIFA_HEIGHT/scaleBurj)*85}%`;
+            waterBar.style.height = `${(yearHeight/scaleBurj)*85}%`;
+
+
+            // --- Update Everest Graph (10 Years) ---
+            stackHeightLabel10y.textContent = Math.round(decadeHeight).toLocaleString() + "m";
+            const ratioEverest = decadeHeight / EVEREST_HEIGHT;
+            
+            // Get Sarcastic Quote for Everest (using % as metric: 25% and 75%)
+            let pctEverest = ratioEverest * 100;
+            const quoteEverest = getQuote(pctEverest, 25, 75);
+            const quoteEverestHtml = `<br><span class="block mt-2 text-xs italic opacity-80">"${quoteEverest}"</span>`;
+
+            if (ratioEverest < 1) {
+                comparisonText10y.innerHTML = `10 Year stack is <span class="font-bold">${(ratioEverest * 100).toFixed(1)}%</span> of Mt. Everest.${quoteEverestHtml}`;
+            } else {
+                comparisonText10y.innerHTML = `10 Year stack is <span class="font-bold text-indigo-300">${ratioEverest.toFixed(2)}x</span> higher than Mt. Everest!${quoteEverestHtml}`;
+            }
+
+            // Color Logic 10 Year (Scale limits higher: Green < 1000m, Red > 5000m ?)
+            // Let's reuse logic but maybe just check height relative to Everest
+            updateBarVisuals(waterBar10y, waterBarLabel10y, stackHeightLabel10y, pctEverest, 25, 75); // Using % thresholds for coloring
+            waterBarLabel10y.textContent = `${pctEverest.toFixed(1)}%`;
+
+            // Scale 10 Year
+            let scaleEverest = Math.max(EVEREST_HEIGHT, decadeHeight);
+            if(scaleEverest === 0) scaleEverest = 100;
+            buildingBarEverest.style.height = `${(EVEREST_HEIGHT/scaleEverest)*85}%`;
+            waterBar10y.style.height = `${(decadeHeight/scaleEverest)*85}%`;
+            
+            // --- Apocalypse Clock Calculation ---
+            if (dailyWater > 0) {
+                const globalDailyDrain = dailyWater * GLOBAL_USERS;
+                const globalAnnualDrain = globalDailyDrain * 365;
+                const yearsToDrain = LAKE_MEAD_LITERS / globalAnnualDrain;
+                
+                let displayTime = "";
+                if (yearsToDrain >= 1000) {
+                    displayTime = (yearsToDrain / 1000).toFixed(1) + "k Years";
+                } else if (yearsToDrain >= 1) {
+                    displayTime = Math.round(yearsToDrain).toLocaleString() + " Years";
+                } else {
+                    const days = Math.round(yearsToDrain * 365);
+                    displayTime = days + " Days";
+                }
+                
+                apocalypseTimeEl.textContent = displayTime;
+                
+                // Pick random sarcastic quote
+                const randIndex = Math.floor(yearsToDrain * 100) % apocalypseQuotes.length;
+                apocalypseQuoteEl.textContent = `"${apocalypseQuotes[randIndex]}"`;
+                
+                // Color change based on urgency
+                if(yearsToDrain < 100) {
+                     apocalypseTimeEl.className = "text-4xl md:text-6xl font-bold text-red-500 mb-2 tracking-tighter animate-pulse";
+                } else {
+                     apocalypseTimeEl.className = "text-4xl md:text-6xl font-bold text-orange-400 mb-2 tracking-tighter";
+                }
+
+            } else {
+                 apocalypseTimeEl.textContent = "∞ Years";
+                 apocalypseQuoteEl.textContent = "\"A perfect angel. Boring, but safe.\"";
+                 apocalypseTimeEl.className = "text-4xl md:text-6xl font-bold text-green-400 mb-2 tracking-tighter";
+            }
+        }
+
+        function updateBarVisuals(bar, label, heightLabel, value, midThreshold, highThreshold) {
+            let barColorFrom, barColorTo, shadowColor, textColor;
+
+            if (value < midThreshold) { // Green
+                barColorFrom = 'rgba(34, 197, 94, 0.8)'; 
+                barColorTo = 'rgba(74, 222, 128, 0.9)';   
+                shadowColor = 'rgba(34, 197, 94, 0.5)';
+                textColor = 'text-green-400'; // Lighter for dark background
+            } else if (value < highThreshold) { // Violet
+                barColorFrom = 'rgba(139, 92, 246, 0.8)'; 
+                barColorTo = 'rgba(167, 139, 250, 0.9)';  
+                shadowColor = 'rgba(139, 92, 246, 0.5)';
+                textColor = 'text-violet-400'; // Lighter for dark background
+            } else { // Red
+                barColorFrom = 'rgba(239, 68, 68, 0.8)'; 
+                barColorTo = 'rgba(248, 113, 113, 0.9)';  
+                shadowColor = 'rgba(239, 68, 68, 0.5)';
+                textColor = 'text-red-400'; // Lighter for dark background
+            }
+            bar.style.background = `linear-gradient(to top, ${barColorFrom}, ${barColorTo})`;
+            bar.style.boxShadow = `0 0 20px ${shadowColor}`;
+            label.className = `bar-label ${textColor}`;
+            heightLabel.className = `mt-2 text-xs font-bold ${textColor}`;
+        }
+
+        // Listeners
+        promptInput.addEventListener('input', calculate);
+        
+        window.addEventListener('load', () => {
+            initTower3D();
+            initEverest3D();
+            calculate();
+        });
+
+    </script>
+</body>
+</html>
